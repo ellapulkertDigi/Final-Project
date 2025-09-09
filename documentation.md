@@ -26,3 +26,41 @@ My first idea was to write a simple Python script. But then I realized I want to
 ---
 
 **Next step:** I’ll start coding the core logic before moving on to building the Streamlit interface.
+
+--- 
+
+## Project Setup
+
+**Workflow Change:**
+Originally, I planned to finish the core logic before building the UI. However, I created a minimal Streamlit interface early to immediately test my functions, get quick feedback, and make development more efficient. 
+
+**Goal:**  
+Build a simple time tracking web app for recording working hours and calculating daily totals.
+
+**Steps completed:**
+- Initialized repository and created basic folder structure.
+- Set up Python virtual environment (`venv`), installed Streamlit, created `requirements.txt`.
+- Implemented minimal Streamlit UI: job name, date, start/end time, calculate button.
+- Connected UI to calculation function (`calculate_daily_hours`).
+- Tested app locally: input fields and time calculation are working.
+
+**Definition of Done:**  
+`streamlit run timetracker.py` displays input fields and shows the calculated duration.
+
+---
+
+## Features and Error Handling Update
+
+**Goal:**
+Enable users to enter break time and hourly wage, and calculate both worked hours and daily earnings with input validation.
+
+**Steps completed:**
+- Added input fields for break (minutes) and hourly wage to the Streamlit UI.
+- Extended `calculate_daily_hours` to subtract breaks and always return a non-negative value.
+- Created `calculate_earnings` to compute daily wage.
+- Added `validate_entry` for input validation (checks for missing values, logical errors).
+- Implemented user-friendly error messages in the UI.
+
+**Definition of Done:**
+The app calculates both worked hours and earnings, and displays helpful error messages for invalid or missing input.
+
