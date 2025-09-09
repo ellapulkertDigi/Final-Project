@@ -26,3 +26,23 @@ My first idea was to write a simple Python script. But then I realized I want to
 ---
 
 **Next step:** I’ll start coding the core logic before moving on to building the Streamlit interface.
+
+--- 
+
+## Project Setup
+
+**Workflow Change:**
+Originally, I planned to finish the core logic before building the UI. However, I created a minimal Streamlit interface early to immediately test my functions, get quick feedback, and make development more efficient. 
+
+**Goal:**  
+Build a simple time tracking web app for recording working hours and calculating daily totals.
+
+**Steps completed:**
+- Initialized repository and created basic folder structure.
+- Set up Python virtual environment (`venv`), installed Streamlit, created `requirements.txt`.
+- Implemented minimal Streamlit UI: job name, date, start/end time, calculate button.
+- Connected UI to calculation function (`calculate_daily_hours`).
+- Tested app locally: input fields and time calculation are working.
+
+**Definition of Done:**  
+`streamlit run timetracker.py` displays input fields and shows the calculated duration.
