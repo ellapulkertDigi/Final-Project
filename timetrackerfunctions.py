@@ -1,12 +1,29 @@
 #here is the ground structure for the functions used in the web app
 
 from datetime import datetime, time  # Used for combining and computing time differences
-# calculate hours worked per day
-def calculate_daily_hours(start_time: time, end_time: time) -> float:
-    start_dt = datetime.combine(datetime.today(), start_time) #Combines today's date with the provided start and end times to create full datetime objects.
+
+#VALIDATION
+def validate_entry(start_time, end_time, break_minutes, hourly_wage):
+    if start_time is None or end_time is None:
+        return "Please enter both start and end time."
+    if end_time <= start_time:
+        return "End time must be after start time."
+    if break_minutes < 0:
+        return "Break cannot be negative."
+    if hourly_wage <= 0:
+        return "Please enter an hourly wage greater than 0."
+    return ""  # No error
+
+#CALCULATION
+def calculate_daily_hours(start_time: time, end_time: time, break_minutes: float = 0): # calculate hours worked per day
+    start_dt = datetime.combine(datetime.today(), start_time) # Combines today's date with the provided start and end times to create full datetime objects.
     end_dt = datetime.combine(datetime.today(), end_time)
     duration = (end_dt - start_dt).total_seconds() / 3600
-    return duration if duration > 0 else 0
+    duration -= break_minutes / 60  # deduct break time
+    return max(duration, 0)
+
+def calculate_earnings(hours_worked: float, hourly_wage: float) -> float: # compute earnings based on hourly wage
+    return round(hours_worked * hourly_wage, 2)
 
 
 def set_personal_settings():
@@ -19,10 +36,6 @@ def add_time_entry():
 
 def calculate_overtime():
     # check overtime above
-    pass
-
-def calculate_earnings():
-    # compute earnings based on hourly wage
     pass
 
 def save_data():
