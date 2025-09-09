@@ -64,3 +64,20 @@ Enable users to enter break time and hourly wage, and calculate both worked hour
 **Definition of Done:**
 The app calculates both worked hours and earnings, and displays helpful error messages for invalid or missing input.
 
+---
+
+## Storing and Displaying Entries
+
+**Goal:**
+Enable users to save each working time entry, and display a table with all entries in the app.
+
+**Steps completed:**
+- Implemented save_entry to store each entry as a row in a CSV file.
+- Implemented load_entries to load all entries from the CSV into a DataFrame.
+- Displayed all saved entries as a table in the Streamlit UI.
+
+**Definition of Done:**
+- New entries are appended to a CSV file.
+- All entries are visible in the app, with readable column names.
+- Table updates automatically after each new entry.
+
