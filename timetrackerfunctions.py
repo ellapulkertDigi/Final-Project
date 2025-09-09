@@ -1,6 +1,8 @@
 #here is the ground structure for the functions used in the web app
 
 from datetime import datetime, time  # Used for combining and computing time differences
+import pandas as pd
+import os
 
 #VALIDATION
 def validate_entry(start_time, end_time, break_minutes, hourly_wage):
@@ -25,6 +27,24 @@ def calculate_daily_hours(start_time: time, end_time: time, break_minutes: float
 def calculate_earnings(hours_worked: float, hourly_wage: float) -> float: # compute earnings based on hourly wage
     return round(hours_worked * hourly_wage, 2)
 
+#DATA SAVING AND LOADING
+def save_entry(entry, filename="entries.csv"):
+    # entry: dict with all fields
+    df_new = pd.DataFrame([entry])
+    if os.path.exists(filename):
+        df = pd.read_csv(filename)
+        df = pd.concat([df, df_new], ignore_index=True)
+    else:
+        df = df_new
+    df.to_csv(filename, index=False)
+
+def load_entries(filename="entries.csv"):
+    if os.path.exists(filename):
+        return pd.read_csv(filename)
+    else:
+        return pd.DataFrame(columns=[
+            "Job Name", "Date", "Start time", "End time", "Break minutes", "Hours worked", "Earnings"
+        ])
 
 def set_personal_settings():
     # hourly wage, weekly target hours, working days
@@ -36,14 +56,6 @@ def add_time_entry():
 
 def calculate_overtime():
     # check overtime above
-    pass
-
-def save_data():
-    # write data to JSON or CSV
-    pass
-
-def load_data():
-    # read data from JSON or CSV
     pass
 
 def summarize_weekly_hours():
