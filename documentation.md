@@ -46,3 +46,21 @@ Build a simple time tracking web app for recording working hours and calculating
 
 **Definition of Done:**  
 `streamlit run timetracker.py` displays input fields and shows the calculated duration.
+
+---
+
+## Features and Error Handling Update
+
+**Goal:**
+Enable users to enter break time and hourly wage, and calculate both worked hours and daily earnings with input validation.
+
+**Steps completed:**
+- Added input fields for break (minutes) and hourly wage to the Streamlit UI.
+- Extended `calculate_daily_hours` to subtract breaks and always return a non-negative value.
+- Created `calculate_earnings` to compute daily wage.
+- Added `validate_entry` for input validation (checks for missing values, logical errors).
+- Implemented user-friendly error messages in the UI.
+
+**Definition of Done:**
+The app calculates both worked hours and earnings, and displays helpful error messages for invalid or missing input.
+
