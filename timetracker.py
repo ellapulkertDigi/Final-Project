@@ -2,7 +2,15 @@
 
 import streamlit as st
 import pandas as pd
-from timetrackerfunctions import calculate_daily_hours, calculate_earnings, validate_entry, save_entry, load_entries
+from timetrackerfunctions import (
+    calculate_daily_hours,
+    calculate_earnings,
+    validate_entry,
+    save_entry,
+    load_entries,
+    summarize_weekly_hours,
+    summarize_monthly_hours,
+)
 
 st.title("Time Tracker") #this will show the header for the app
 
@@ -28,7 +36,7 @@ if st.button("Calculate Entry"):
             "Start time": start_time.strftime("%H:%M"),
             "End time": end_time.strftime("%H:%M"),
             "Break minutes": break_minutes,
-            "Hours worked": duration,
+            "Hours worked": round(duration, 2),
             "Earnings": earnings
         }
         save_entry(entry)
@@ -36,5 +44,52 @@ if st.button("Calculate Entry"):
 
 # Show saved entries as table
 entries_df = load_entries()
-st.subheader("All entries")
-st.dataframe(entries_df)
+
+def style_entries_table(df):
+    # Format "Hours worked" with two decimals and "Earnings" with two decimals plus euro sign
+    return df.style.format({
+        "Hours worked": "{:.2f}",
+        "Earnings": "{:.2f} €"
+    })
+
+def style_summary_table(df):
+    # Format summary columns with two decimals and add euro sign to earnings
+    return df.style.format({
+        "Total hours": "{:.2f}",
+        "Total earnings": "{:.2f} €"
+    })
+
+if not entries_df.empty:
+    # Round numbers for safety
+    entries_df["Hours worked"] = entries_df["Hours worked"].round(2)
+    entries_df["Earnings"] = entries_df["Earnings"].round(2)
+
+    weekly_summary = summarize_weekly_hours(entries_df)
+    monthly_summary = summarize_monthly_hours(entries_df)
+
+    # Round using the original column names
+    weekly_summary["total_hours"] = weekly_summary["total_hours"].round(2)
+    weekly_summary["total_earnings"] = weekly_summary["total_earnings"].round(2)
+    monthly_summary["total_hours"] = monthly_summary["total_hours"].round(2)
+    monthly_summary["total_earnings"] = monthly_summary["total_earnings"].round(2)
+
+    # Rename columns for display
+    weekly_summary = weekly_summary.rename(columns={
+        "total_hours": "Total hours",
+        "total_earnings": "Total earnings"
+    })
+    monthly_summary = monthly_summary.rename(columns={
+        "total_hours": "Total hours",
+        "total_earnings": "Total earnings"
+    })
+
+    st.subheader("All entries")
+    st.write(style_entries_table(entries_df))
+
+    st.subheader("Weekly summary")
+    st.write(style_summary_table(weekly_summary))
+
+    st.subheader("Monthly summary")
+    st.write(style_summary_table(monthly_summary))
+else:
+    st.info("No entries yet. Add some time entries to see summaries!")

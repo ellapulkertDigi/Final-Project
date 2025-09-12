@@ -1,7 +1,7 @@
 #here is the ground structure for the functions used in the web app
 
 from datetime import datetime, time  # Used for combining and computing time differences
-import pandas as pd
+import pandas as pd # Pandas is used for efficient table (DataFrame) handling, grouping, and summarizing time tracking data
 import os
 
 #VALIDATION
@@ -26,6 +26,29 @@ def calculate_daily_hours(start_time: time, end_time: time, break_minutes: float
 
 def calculate_earnings(hours_worked: float, hourly_wage: float) -> float: # compute earnings based on hourly wage
     return round(hours_worked * hourly_wage, 2)
+
+def summarize_weekly_hours(df):
+    # Make sure 'Date' is in datetime format
+    df["Date"] = pd.to_datetime(df["Date"])
+    # Create a column for ISO week number
+    df["Week"] = df["Date"].dt.isocalendar().week
+    # Group by week and sum up hours and earnings
+    week_summary = df.groupby("Week").agg(
+        total_hours=("Hours worked", "sum"),
+        total_earnings=("Earnings", "sum")
+    ).reset_index()
+    return week_summary
+
+def summarize_monthly_hours(df):
+    df["Date"] = pd.to_datetime(df["Date"])
+    # Create a column for year-month
+    df["Month"] = df["Date"].dt.strftime("%Y-%m")
+    # Group by month and sum up hours and earnings
+    month_summary = df.groupby("Month").agg(
+        total_hours=("Hours worked", "sum"),
+        total_earnings=("Earnings", "sum")
+    ).reset_index()
+    return month_summary
 
 #DATA SAVING AND LOADING
 def save_entry(entry, filename="entries.csv"):
@@ -56,14 +79,6 @@ def add_time_entry():
 
 def calculate_overtime():
     # check overtime above
-    pass
-
-def summarize_weekly_hours():
-    # total hours for each week
-    pass
-
-def summarize_monthly_hours():
-    # total hours for each month
     pass
 
 def prepare_chart_data():
