@@ -12,16 +12,15 @@ from timetrackerfunctions import (
     summarize_monthly_hours,
     load_settings,
     save_settings,
+    calculate_overtime,
 )
 
 st.title("Time Tracker") #this will show the header for the app
 
-job_name = st.text_input("Job Name")
 work_date = st.date_input("Date")
 start_time = st.time_input("Start Time")
 end_time = st.time_input("End Time")
 break_minutes = st.number_input("Break (minutes)", min_value=0, value=0)
-hourly_wage = st.number_input("Hourly Wage (€)", min_value=0.0, value=0.0, format="%.2f")
 
 settings = load_settings()
 
@@ -29,15 +28,15 @@ st.sidebar.header("Settings")
 with st.sidebar.form("settings_form"):
     new_job_name = st.text_input("Default job name", value=settings.get("default_job_name", ""))
     new_hourly_wage = st.number_input("Default hourly wage (€)", min_value=0.0, value=settings.get("default_hourly_wage", 0.0), format="%.2f")
-
+    new_weekly_hours = st.number_input("Estimated weekly hours", min_value=1, value=settings.get("estimated_weekly_hours", 40))
     save_btn = st.form_submit_button("Save settings")
-
     if save_btn:
-        # Update settings and save to file
         settings["default_job_name"] = new_job_name
         settings["default_hourly_wage"] = new_hourly_wage
+        settings["estimated_weekly_hours"] = new_weekly_hours
         save_settings(settings)
         st.success("Settings saved! Please reload the page to apply changes.")
+
 
 # Button and validation
 if st.button("Calculate Entry"):
@@ -77,7 +76,6 @@ def style_summary_table(df):
     })
 
 if not entries_df.empty:
-    # Round numbers for safety
     entries_df["Hours worked"] = entries_df["Hours worked"].round(2)
     entries_df["Earnings"] = entries_df["Earnings"].round(2)
 
@@ -90,21 +88,34 @@ if not entries_df.empty:
     monthly_summary["total_hours"] = monthly_summary["total_hours"].round(2)
     monthly_summary["total_earnings"] = monthly_summary["total_earnings"].round(2)
 
-    # Rename columns for display
+    # ==== OVERTIME CALCULATION & DISPLAY ====
+    estimated_weekly_hours = settings.get("estimated_weekly_hours", 40)
+    weekly_summary = calculate_overtime(weekly_summary, estimated_weekly_hours)
+
+    # Rename columns for display (including Overtime)
     weekly_summary = weekly_summary.rename(columns={
         "total_hours": "Total hours",
-        "total_earnings": "Total earnings"
+        "total_earnings": "Total earnings",
+        "Overtime": "Overtime"
     })
     monthly_summary = monthly_summary.rename(columns={
         "total_hours": "Total hours",
         "total_earnings": "Total earnings"
     })
 
+    def style_summary_table_with_overtime(df):
+        # Format all relevant columns, including Overtime
+        return df.style.format({
+            "Total hours": "{:.2f}",
+            "Total earnings": "{:.2f} €",
+            "Overtime": "{:.2f}"
+        })
+
     st.subheader("All entries")
     st.write(style_entries_table(entries_df))
 
     st.subheader("Weekly summary")
-    st.write(style_summary_table(weekly_summary))
+    st.write(style_summary_table_with_overtime(weekly_summary))
 
     st.subheader("Monthly summary")
     st.write(style_summary_table(monthly_summary))

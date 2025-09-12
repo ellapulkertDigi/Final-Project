@@ -68,6 +68,12 @@ def summarize_monthly_hours(df):
     ).reset_index()
     return month_summary
 
+def calculate_overtime(weekly_summary, estimated_weekly_hours):
+    # Adds a new "Overtime" column to the weekly summary DataFrame
+    weekly_summary["Overtime"] = weekly_summary["total_hours"] - estimated_weekly_hours
+    weekly_summary["Overtime"] = weekly_summary["Overtime"].apply(lambda x: x if x > 0 else 0)
+    return weekly_summary
+
 #DATA SAVING AND LOADING
 def save_entry(entry, filename="entries.csv"):
     # entry: dict with all fields
@@ -93,10 +99,6 @@ def set_personal_settings():
 
 def add_time_entry():
     # date, start/end time, break, notes
-    pass
-
-def calculate_overtime():
-    # check overtime above
     pass
 
 def prepare_chart_data():
