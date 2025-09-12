@@ -81,3 +81,62 @@ Enable users to save each working time entry, and display a table with all entri
 - All entries are visible in the app, with readable column names.
 - Table updates automatically after each new entry.
 
+---
+
+## Table Formatting & Data Presentation
+
+**Goal:**
+Improve readability of the entries table by rounding hours to two decimal places and appending the euro sign to the earnings. Weekly and monthly summaries are also presented with formatted columns.
+
+**Steps completed:**
+- Used Pandas Styler to format "Hours worked" with two decimal places and "Earnings" with a euro sign.
+- Applied similar formatting to summary tables (weekly and monthly totals).
+- Updated UI to use st.write() for styled DataFrames instead of st.dataframe().
+
+**Definition of Done:**
+All tables in the app now display properly formatted values, improving clarity and professionalism.
+
+---
+
+## Weekly and Monthly Summary
+
+**Goal:**
+Allow users to view total working hours and earnings summarized by week and by month.
+
+**Steps completed:**
+- Implemented `summarize_weekly_hours` and `summarize_monthly_hours` functions to group and sum data.
+- Displayed weekly and monthly summaries as tables in the Streamlit UI.
+- Used formatted column headers for better readability.
+
+**Definition of Done:**
+Users see at a glance whether they worked overtime in any given week, with total overtime hours displayed.
+
+---
+
+## User Settings
+
+**Goal:**
+Enable users to set and update default values (job name, hourly wage, estimated weekly hours) via a settings file and UI section.
+
+**Steps completed:**
+- Created a `settings.json` file to store default preferences.
+- Added functions to load and save settings.
+- Built a sidebar settings form in Streamlit for users to update their preferences, with persistent storage.
+- Updated main input fields to use these default values.
+
+**Definition of Done:**
+Settings are loaded at startup, can be changed via the UI, and changes persist across sessions.
+
+---
+
+## Overtime Calculation
+**Goal:**
+Automatically calculate and display weekly overtime based on user-defined estimated weekly hours.
+
+**Steps completed:**
+- Added `estimated_weekly_hours` to settings and settings UI.
+- Implemented `calculate_overtime` to add an "Overtime" column to the weekly summary.
+- Displayed overtime in the weekly summary, formatted for clarity.
+
+**Definition of Done:**
+Users see at a glance whether they worked overtime in any given week, with total overtime hours displayed.
