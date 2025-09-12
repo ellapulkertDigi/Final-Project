@@ -3,6 +3,24 @@
 from datetime import datetime, time  # Used for combining and computing time differences
 import pandas as pd # Pandas is used for efficient table (DataFrame) handling, grouping, and summarizing time tracking data
 import os
+import json
+
+#SETTINGS
+def load_settings(filename="settings.json"):
+    if os.path.exists(filename):
+        with open(filename, "r") as f:
+            return json.load(f)
+    else:
+        # Default settings if file does not exist
+        return {
+            "default_job_name": "",
+            "default_hourly_wage": 0.0
+        }
+
+def save_settings(settings, filename="settings.json"):
+    # Save settings dictionary to a JSON file
+    with open(filename, "w") as f:
+        json.dump(settings, f, indent=2)
 
 #VALIDATION
 def validate_entry(start_time, end_time, break_minutes, hourly_wage):

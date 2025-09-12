@@ -10,6 +10,8 @@ from timetrackerfunctions import (
     load_entries,
     summarize_weekly_hours,
     summarize_monthly_hours,
+    load_settings,
+    save_settings,
 )
 
 st.title("Time Tracker") #this will show the header for the app
@@ -21,6 +23,21 @@ end_time = st.time_input("End Time")
 break_minutes = st.number_input("Break (minutes)", min_value=0, value=0)
 hourly_wage = st.number_input("Hourly Wage (€)", min_value=0.0, value=0.0, format="%.2f")
 
+settings = load_settings()
+
+st.sidebar.header("Settings")
+with st.sidebar.form("settings_form"):
+    new_job_name = st.text_input("Default job name", value=settings.get("default_job_name", ""))
+    new_hourly_wage = st.number_input("Default hourly wage (€)", min_value=0.0, value=settings.get("default_hourly_wage", 0.0), format="%.2f")
+
+    save_btn = st.form_submit_button("Save settings")
+
+    if save_btn:
+        # Update settings and save to file
+        settings["default_job_name"] = new_job_name
+        settings["default_hourly_wage"] = new_hourly_wage
+        save_settings(settings)
+        st.success("Settings saved! Please reload the page to apply changes.")
 
 # Button and validation
 if st.button("Calculate Entry"):
