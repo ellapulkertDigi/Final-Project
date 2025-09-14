@@ -36,4 +36,4 @@ typing_extensions==4.15.0
 tzdata==2025.2
 urllib3==2.5.0
 gspread>=5.7.0
-google-auth
+google-auth>=2.0.0
