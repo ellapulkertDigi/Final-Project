@@ -1,20 +1,24 @@
-import streamlit as st
 import pandas as pd
 import hashlib
 import gspread
 from google.oauth2.service_account import Credentials
 
+# Deine eigenen Funktionen aus timetrackerfunctions.py:
 from timetrackerfunctions import (
     calculate_daily_hours,
     calculate_earnings,
     validate_entry,
     summarize_weekly_hours,
     summarize_monthly_hours,
-    load_settings,
-    save_settings,
     calculate_overtime,
     plot_weekly_hours,
-    fmt_time
+    fmt_time,
+    load_settings_gsheet,
+    save_settings_gsheet,
+    load_entries_gsheet,
+    save_entry_gsheet,
+    load_weekly_hours_history_gsheet,
+    save_weekly_hours_history_gsheet
 )
 
 # 1. Passwortschutz
