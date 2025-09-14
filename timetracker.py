@@ -39,43 +39,30 @@ check_password()
 
 st.title("Time Tracker")
 
-# 2. Google Sheets Verbindung
+# 2. Google Sheets Verbindung aufbauen
 scope = [
     "https://spreadsheets.google.com/feeds",
     "https://www.googleapis.com/auth/drive"
 ]
 creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
 client = gspread.authorize(creds)
+
+# Hauptdatenblatt (Entries)
 sheet = client.open("timetracker-data").sheet1  # Passe ggf. den Namen an!
 
-# 3. Hilfsfunktionen für Google Sheets
-def load_entries_gsheet(sheet):
-    data = sheet.get_all_records()
-    df = pd.DataFrame(data)
-    if df.empty:
-        df = pd.DataFrame(columns=[
-            "Job Name", "Date", "Start time", "End time", "Break minutes", "Hours worked", "Earnings"
-        ])
-    return df
+# Settings- und WeeklyHistory-Blätter holen
+settings_sheet = client.open("timetracker-data").worksheet("Settings")
+weekly_sheet = client.open("timetracker-data").worksheet("WeeklyHistory")
 
-def save_entry_gsheet(entry, sheet):
-    row = [
-        entry["Job Name"],
-        entry["Date"],
-        entry["Start time"],
-        entry["End time"],
-        entry["Break minutes"],
-        entry["Hours worked"],
-        entry["Earnings"]
-    ]
-    sheet.append_row(row)
+# 3. Settings & WeeklyHistory laden
+settings = load_settings_gsheet(settings_sheet)
+whist = load_weekly_hours_history_gsheet(weekly_sheet)
 
-# 4. Einstellungen (bleiben erstmal lokal)
-settings = load_settings()
 estimated_weekly_hours = settings.get("estimated_weekly_hours", 40)
 job_name = settings.get("default_job_name", "")
 hourly_wage = settings.get("default_hourly_wage", 0.0)
 
+# 4. Markup für die aktiven Einstellungen
 st.markdown(
     f"<span style='color:green; font-weight:bold;'>"
     f"Active job: {job_name}   |   "
@@ -84,6 +71,7 @@ st.markdown(
     f"</span>",
     unsafe_allow_html=True
 )
+
 
 # 5. Eingabe-Felder
 work_date = st.date_input("Date")
@@ -102,21 +90,14 @@ with st.sidebar.form("settings_form"):
         settings["default_job_name"] = new_job_name
         settings["default_hourly_wage"] = new_hourly_wage
         settings["estimated_weekly_hours"] = new_weekly_hours
-        save_settings(settings)
+        save_settings_gsheet(settings, settings_sheet)
 
         from datetime import date
-        import json, os
+
         year, week, _ = date.today().isocalendar()
         week_id = f"{year}-{week:02d}"
-        hist_file = "weekly_hours_history.json"
-        if os.path.exists(hist_file):
-            with open(hist_file, "r") as f:
-                whist = json.load(f)
-        else:
-            whist = {}
         whist[week_id] = new_weekly_hours
-        with open(hist_file, "w") as f:
-            json.dump(whist, f)
+        save_weekly_hours_history_gsheet(whist, weekly_sheet)
 
         st.success("Settings saved!")
         st.rerun()
@@ -265,7 +246,7 @@ if not entries_df.empty:
     weekly_summary = summarize_weekly_hours(entries_df)
     weekly_summary["total_hours"] = weekly_summary["total_hours"].round(2)
     weekly_summary["total_earnings"] = weekly_summary["total_earnings"].round(2)
-    weekly_summary = calculate_overtime(weekly_summary, settings)
+    weekly_summary = calculate_overtime(weekly_summary, settings, whist)
 
     # Chart: aufsteigend sortieren
     weekly_summary_chart = weekly_summary.sort_values(

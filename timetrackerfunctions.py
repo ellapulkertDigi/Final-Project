@@ -5,21 +5,24 @@ import json
 import plotly.express as px
 
 # SETTINGS
-def load_settings(filename="settings.json"):
-    if os.path.exists(filename):
-        with open(filename, "r") as f:
-            return json.load(f)
-    else:
-        # Default settings if file does not exist
-        return {
-            "default_job_name": "",
-            "default_hourly_wage": 0.0,
-            "estimated_weekly_hours": 40
-        }
+def load_settings_gsheet(sheet):
+    records = sheet.get_all_records()
+    settings = {row["key"]: row["value"] for row in records}
+    # Typumwandlung
+    if "default_hourly_wage" in settings:
+        settings["default_hourly_wage"] = float(settings["default_hourly_wage"])
+    if "estimated_weekly_hours" in settings:
+        settings["estimated_weekly_hours"] = float(settings["estimated_weekly_hours"])
+    return settings
 
-def save_settings(settings, filename="settings.json"):
-    with open(filename, "w") as f:
-        json.dump(settings, f, indent=2)
+def save_settings_gsheet(settings, sheet):
+    # sheet: Das "Settings"-Tabellenblatt
+    data = [[k, v] for k, v in settings.items()]
+    # Überschreibe ganzes Blatt
+    sheet.clear()
+    sheet.append_row(["key", "value"])
+    for row in data:
+        sheet.append_row(row)
 
 # VALIDATION
 def validate_entry(start_time, end_time, break_minutes, hourly_wage):
@@ -63,24 +66,32 @@ def summarize_monthly_hours(df):
     ).reset_index()
     return month_summary
 
-def calculate_overtime(weekly_summary, settings, hist_file="weekly_hours_history.json"):
-    """
-    Adds an 'Overtime' column to the weekly_summary DataFrame,
-    using the correct 'estimated weekly hours' for each week.
-    """
-    # Lade Historie
-    if os.path.exists(hist_file):
-        with open(hist_file, "r") as f:
-            whist = json.load(f)
-    else:
-        whist = {}
 
-    # Hilfsfunktion: Hole Sollwert für die Woche
+
+def load_weekly_hours_history_gsheet(weekly_sheet):
+    """Lädt die Wochen-Historie aus dem Tabellenblatt 'WeeklyHistory'."""
+    records = weekly_sheet.get_all_records()
+    # Gibt ein Dict {week_id: estimated_weekly_hours}
+    return {str(row["week_id"]): float(row["estimated_weekly_hours"]) for row in records}
+
+def save_weekly_hours_history_gsheet(whist, weekly_sheet):
+    """Speichert die Wochen-Historie in das Tabellenblatt 'WeeklyHistory'."""
+    weekly_sheet.clear()
+    weekly_sheet.append_row(["week_id", "estimated_weekly_hours"])
+    for week_id, hours in whist.items():
+        weekly_sheet.append_row([week_id, hours])
+
+
+def calculate_overtime(weekly_summary, settings, whist):
+    """
+    Fügt dem weekly_summary-DataFrame die Spalten
+    'Estimated weekly hours' und 'Overtime' hinzu,
+    mit Sollwerten aus whist (Google Sheet).
+    """
     def get_estimated_weekly_hours(year, week):
         week_id = f"{year}-{week:02d}"
-        return whist.get(week_id, settings.get("estimated_weekly_hours", 40))  # fallback: aktueller Wert
+        return whist.get(week_id, settings.get("estimated_weekly_hours", 40))  # fallback
 
-    # Berechne Overtime pro Woche individuell
     overtime_list = []
     used_weekly_hours = []
     for _, row in weekly_summary.iterrows():
@@ -94,7 +105,6 @@ def calculate_overtime(weekly_summary, settings, hist_file="weekly_hours_history
     weekly_summary["Estimated weekly hours"] = used_weekly_hours
     weekly_summary["Overtime"] = overtime_list
     return weekly_summary
-
 
 # VISUALIZATION
 import plotly.graph_objects as go
