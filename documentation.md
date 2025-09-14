@@ -143,6 +143,7 @@ Users see at a glance whether they worked overtime in any given week, with total
 
 ---
 ## Weekly Hours Bar Chart
+
 **Goal:** Visualize the number of hours worked for each week to provide a quick overview of work trends and overtime.
 
 **Steps completed:**
@@ -172,3 +173,85 @@ The app requests a password before showing any content. Only users with the pre-
 **Known Limitation:**
 This approach only allows for **a single, pre-defined password** that must be set in advance by the admin or developer. There is **no account management or the possibility for end users to set their own password or have individual profiles.** All users share the same access and settings. If true multi-user support with personalized data is required, a more advanced authentication and user management system would be needed.
 
+---
+
+## Weekly Overview & Multiple Entries per Day
+
+**Goal:** Provide a "This Week" calendar view, with support for multiple work sessions per day.
+
+**Steps completed:**
+- Added a new UI block showing the current week as a calendar.
+- Each day lists all entries for that date (not just one).
+- Users can enter multiple work periods per day (e.g., split shifts).
+- The week view automatically updates and summarizes total hours and earnings for the current week.
+
+**Definition of Done:**
+Users see a clear weekly overview and can track multiple sessions per day.
+
+---
+
+## Entry Deletion Feature
+
+**Goal:**
+Allow users to delete individual time entries if they made a mistake.
+
+**Steps completed:**
+- Added a delete button (trash icon) next to each entry in the "All entries" table.
+- Clicking the button removes the entry from Google Sheets immediately.
+- The app reloads updated data after deletion.
+
+**Definition of Done:**
+Users can remove any entry directly from the UI; changes are reflected instantly.
+
+---
+
+## UI and Table Improvements
+
+**Goal:**
+Make the app visually clearer and more user-friendly.
+
+**Steps completed:**
+- Improved time formatting (displaying times as HH:MM).
+- Optimized table and summary layouts for clarity and readability.
+- Sidebar settings are now clearer and easier to use.
+- Streamlined the order of UI elements for better workflow.
+
+**Definition of Done:**
+Tables and summaries are easy to read, and all common operations are intuitive.
+
+---
+
+## Deploying the App on Streamlit Cloud
+To make the time tracker available from anywhere, I deployed it on 
+STREAMLIT CLOUD:
+- The app code and requirements are pushed to GitHub.
+- Secrets (Google credentials, password hash) are managed securely using Streamlit Cloud's secret storage.
+- The app is launched by pointing Streamlit Cloud to timetracker.py.
+- Once deployed, users can simply open the web URL, log in, and use the app from any device—no installation needed.
+
+--- 
+
+## Migration to Google Sheets (Cloud Storage)
+
+**Goal:**
+Make the time tracker usable from any device and location, not just locally.
+
+**Steps completed:**
+- Switched all data saving/loading from local CSV/JSON files to Google Sheets.
+- Set up a Google Service Account and shared the sheet for API access.
+- Updated all functions (save_entry, load_entries, settings, weekly history) to read/write directly from Google Sheets.
+- This enables true "cloud" usage: entries and settings are always up-to-date, even across devices and after reinstalling.
+
+**Definition of Done:**
+All app data is now stored in Google Sheets. The app can be opened and used from any browser, anywhere.
+
+**During the migration from local CSV/JSON storage to Google Sheets, I leveraged AI (ChatGPT) to help design and implement the connection between my Python code and the Google Sheets API. This made it much easier to solve the challenge of making my data globally accessible, as I could quickly get examples and overcome issues around authentication, API usage, and data structure. Without AI support, this cloud-based approach would have taken much longer to figure out.** -> see comments in code
+
+--- 
+
+## Additional Notes / Known Limitations
+- No user accounts: All users share a single password and data set. For individual profiles, a more complex login system would be needed.
+- No offline mode: The app requires internet access to Google Sheets.
+- No undo for deletions: Deleted entries are gone immediately.
+- No multi-language support: All UI text is currently in English.
+- No advanced reporting/export features yet.
