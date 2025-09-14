@@ -95,23 +95,6 @@ def calculate_overtime(weekly_summary, settings, hist_file="weekly_hours_history
     weekly_summary["Overtime"] = overtime_list
     return weekly_summary
 
-# DATA SAVING AND LOADING
-def save_entry(entry, filename="entries.csv"):
-    df_new = pd.DataFrame([entry])
-    if os.path.exists(filename):
-        df = pd.read_csv(filename)
-        df = pd.concat([df, df_new], ignore_index=True)
-    else:
-        df = df_new
-    df.to_csv(filename, index=False)
-
-def load_entries(filename="entries.csv"):
-    if os.path.exists(filename):
-        return pd.read_csv(filename)
-    else:
-        return pd.DataFrame(columns=[
-            "Job Name", "Date", "Start time", "End time", "Break minutes", "Hours worked", "Earnings"
-        ])
 
 # VISUALIZATION
 import plotly.graph_objects as go

@@ -1,11 +1,13 @@
 import streamlit as st
 import pandas as pd
+import hashlib
+import gspread
+from google.oauth2.service_account import Credentials
+
 from timetrackerfunctions import (
     calculate_daily_hours,
     calculate_earnings,
     validate_entry,
-    save_entry,
-    load_entries,
     summarize_weekly_hours,
     summarize_monthly_hours,
     load_settings,
@@ -15,8 +17,7 @@ from timetrackerfunctions import (
     fmt_time
 )
 
-import hashlib
-
+# 1. Passwortschutz
 def check_password():
     """Simple password protection for Streamlit apps."""
     def password_entered():
@@ -34,20 +35,47 @@ def check_password():
         st.error("Wrong password. Try again.")
         st.stop()
 
-# Call this at the very top!
 check_password()
 
 st.title("Time Tracker")
 
-# Load settings and entries
+# 2. Google Sheets Verbindung
+scope = [
+    "https://spreadsheets.google.com/feeds",
+    "https://www.googleapis.com/auth/drive"
+]
+creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
+client = gspread.authorize(creds)
+sheet = client.open("timetracker-data").sheet1  # Passe ggf. den Namen an!
+
+# 3. Hilfsfunktionen für Google Sheets
+def load_entries_gsheet(sheet):
+    data = sheet.get_all_records()
+    df = pd.DataFrame(data)
+    if df.empty:
+        df = pd.DataFrame(columns=[
+            "Job Name", "Date", "Start time", "End time", "Break minutes", "Hours worked", "Earnings"
+        ])
+    return df
+
+def save_entry_gsheet(entry, sheet):
+    row = [
+        entry["Job Name"],
+        entry["Date"],
+        entry["Start time"],
+        entry["End time"],
+        entry["Break minutes"],
+        entry["Hours worked"],
+        entry["Earnings"]
+    ]
+    sheet.append_row(row)
+
+# 4. Einstellungen (bleiben erstmal lokal)
 settings = load_settings()
 estimated_weekly_hours = settings.get("estimated_weekly_hours", 40)
-
-# Hole aktuelle Einstellungen aus dem Sidebar-Formular
 job_name = settings.get("default_job_name", "")
 hourly_wage = settings.get("default_hourly_wage", 0.0)
 
-# Zeige die aktiven Einstellungen grün und fett an
 st.markdown(
     f"<span style='color:green; font-weight:bold;'>"
     f"Active job: {job_name}   |   "
@@ -57,13 +85,13 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Eingabe-Felder
+# 5. Eingabe-Felder
 work_date = st.date_input("Date")
 start_time = st.time_input("Start Time")
 end_time = st.time_input("End Time")
 break_minutes = st.number_input("Break (minutes)", min_value=0, value=0)
 
-# Settings sidebar (unverändert)
+# 6. Settings sidebar (unverändert)
 st.sidebar.header("Settings")
 with st.sidebar.form("settings_form"):
     new_job_name = st.text_input("Default job name", value=settings.get("default_job_name", ""))
@@ -93,7 +121,7 @@ with st.sidebar.form("settings_form"):
         st.success("Settings saved!")
         st.rerun()
 
-# Button and validation
+# 7. Eintrag speichern
 if st.button("Calculate Entry"):
     error_msg = validate_entry(start_time, end_time, break_minutes, hourly_wage)
     if error_msg:
@@ -103,34 +131,30 @@ if st.button("Calculate Entry"):
         earnings = calculate_earnings(duration, hourly_wage)
         entry = {
             "Job Name": job_name,
-            "Date": work_date,
+            "Date": str(work_date),
             "Start time": start_time.strftime("%H:%M"),
             "End time": end_time.strftime("%H:%M"),
             "Break minutes": break_minutes,
             "Hours worked": round(duration, 2),
             "Earnings": round(earnings, 2)
         }
-        save_entry(entry)
+        save_entry_gsheet(entry, sheet)
         st.success(f"Worked hours: {duration:.2f}\nEarnings: {earnings:.2f} €")
 st.caption('To delete an entry, go to **All entries**.')
 
-# Load and display entries
-entries_df = load_entries()
+# 8. Einträge laden (Google Sheet)
+entries_df = load_entries_gsheet(sheet)
 
-# Stelle sicher, dass Date ein datetime-Objekt ist (wichtig für korrektes Sortieren)
-entries_df["Date"] = pd.to_datetime(entries_df["Date"])
-
-# Optional: Auch nach Startzeit sortieren, falls mehrere Einträge am selben Tag
+# 9. Datums- und Zeitspalten korrekt umwandeln
+entries_df["Date"] = pd.to_datetime(entries_df["Date"], errors='coerce')
 if "Start time" in entries_df.columns:
     entries_df["Start time"] = pd.to_datetime(entries_df["Start time"], format="%H:%M", errors="coerce")
 
-# Nach Datum (und ggf. Startzeit) absteigend sortieren:
 entries_df = entries_df.sort_values(
     by=["Date", "Start time"], ascending=[False, False]
 ).reset_index(drop=True)
 
 from datetime import date, timedelta
-
 
 # Kalenderlogik
 today = date.today()
@@ -192,14 +216,12 @@ else:
 # ========== SUMMARIES & CHART ==========
 
 def style_entries_table(df):
-    # Format "Hours worked" with two decimals and "Earnings" with two decimals plus euro sign
     return df.style.format({
         "Hours worked": "{:.2f}",
         "Earnings": "{:.2f} €"
     })
 
 def style_summary_table_with_overtime(df):
-    # Format all relevant columns, including Overtime and Estimated weekly hours
     return df.style.format({
         "Total hours": "{:.2f}",
         "Total earnings": "{:.2f} €",
@@ -208,24 +230,22 @@ def style_summary_table_with_overtime(df):
     })
 
 def style_summary_table(df):
-    # Format summary columns with two decimals and add euro sign to earnings
     return df.style.format({
         "Total hours": "{:.2f}",
         "Total earnings": "{:.2f} €"
     })
 
 if not entries_df.empty:
-    entries_df["Hours worked"] = entries_df["Hours worked"].round(2)
-    entries_df["Earnings"] = entries_df["Earnings"].round(2)
+    entries_df["Hours worked"] = pd.to_numeric(entries_df["Hours worked"], errors="coerce").round(2)
+    entries_df["Earnings"] = pd.to_numeric(entries_df["Earnings"], errors="coerce").round(2)
 
-    # ========== WEEKLY SUMMARY ==========
-
+    # WEEKLY SUMMARY
     weekly_summary = summarize_weekly_hours(entries_df)
     weekly_summary["total_hours"] = weekly_summary["total_hours"].round(2)
     weekly_summary["total_earnings"] = weekly_summary["total_earnings"].round(2)
     weekly_summary = calculate_overtime(weekly_summary, settings)
 
-    # Für Chart: aufsteigend sortieren
+    # Chart: aufsteigend sortieren
     weekly_summary_chart = weekly_summary.sort_values(
         by=["Year", "Week"], ascending=[True, True]
     ).reset_index(drop=True)
@@ -243,8 +263,7 @@ if not entries_df.empty:
         "Overtime": "Overtime"
     })
 
-    # ========== MONTHLY SUMMARY ==========
-
+    # MONTHLY SUMMARY
     monthly_summary = summarize_monthly_hours(entries_df)
     monthly_summary["total_hours"] = monthly_summary["total_hours"].round(2)
     monthly_summary["total_earnings"] = monthly_summary["total_earnings"].round(2)
@@ -255,37 +274,32 @@ if not entries_df.empty:
         "total_earnings": "Total earnings"
     })
 
-    # ========== CHART ==========
-
+    # CHART
     st.subheader("4 Weeks Overview")
     fig = plot_weekly_hours(weekly_summary_chart)
     st.plotly_chart(fig, use_container_width=True)
 
-    # ========== WEEKLY SUMMARY (EXPANDER) ==========
+    # WEEKLY SUMMARY (EXPANDER)
     with st.expander("Weekly summary"):
         st.write(style_summary_table_with_overtime(weekly_summary))
 
-    # ========== MONTHLY SUMMARY (EXPANDER) ==========
+    # MONTHLY SUMMARY (EXPANDER)
     with st.expander("Monthly summary"):
         st.write(style_summary_table(monthly_summary))
 
-    # ========== ALL ENTRIES (EXPANDER) ==========
+    # ALL ENTRIES (EXPANDER)
     with st.expander("All entries"):
-        # Tabellenkopf
         cols = st.columns([2, 2, 2, 2, 2, 1])
         headers = ["Date", "Start–End", "Job Name", "Hours worked", "Earnings", ""]
         for col, header in zip(cols, headers):
             col.markdown(f"**{header}**")
 
-        # Tabellenzeilen
         for idx, row in entries_df.iterrows():
-            # Datum kompakt (DD.MM.YYYY)
             try:
                 date_str = pd.to_datetime(row["Date"]).strftime("%d.%m.%Y")
             except Exception:
                 date_str = str(row["Date"])
 
-            # Start-End kompakt (HH:MM–HH:MM)
             start_fmt = fmt_time(row['Start time'])
             end_fmt = fmt_time(row['End time'])
 
@@ -308,17 +322,15 @@ if not entries_df.empty:
             cols[2].write(job)
             cols[3].write(hours)
             cols[4].write(earnings)
-            # Nur Mülleimer-Emoji:
+            # Mülleimer-Button: Lösche Zeile im Google Sheet (idx+2, da Header Zeile 1)
             if cols[5].button("🗑️", key=f"del_{idx}"):
-                entries_df = entries_df.drop(idx)
-                entries_df.to_csv("entries.csv", index=False)
+                sheet.delete_rows(idx + 2)
                 st.rerun()
                 break
 
-
-
 else:
     st.info("No entries yet. Add some time entries to see summaries!")
+
 
 
 
