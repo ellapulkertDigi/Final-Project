@@ -56,6 +56,8 @@ st.title("Time Tracker")
 # Connect to Google Sheets
 # Set up Google Sheets client using credentials stored in Streamlit secrets.
 # Access three worksheets: entries (main), settings, and weekly hours history.
+# The integration and API usage were accelerated and debugged with the help of AI (ChatGPT).
+
 scope = [
     "https://spreadsheets.google.com/feeds",
     "https://www.googleapis.com/auth/drive"
