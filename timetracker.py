@@ -3,6 +3,7 @@ import pandas as pd
 import hashlib
 import gspread
 from google.oauth2.service_account import Credentials
+from datetime import date, timedelta
 
 from timetrackerfunctions import (
     calculate_daily_hours,
@@ -18,12 +19,20 @@ from timetrackerfunctions import (
     load_entries_gsheet,
     save_entry_gsheet,
     load_weekly_hours_history_gsheet,
-    save_weekly_hours_history_gsheet
+    save_weekly_hours_history_gsheet,
+    safe_float,
+    safe_sum,
+    style_entries_table,
+    style_summary_table_with_overtime,
+    style_summary_table
 )
 
-# 1. Passwortschutz
 def check_password():
-    """Simple password protection for Streamlit apps."""
+    """
+    Simple password protection for the Streamlit app.
+    Stores authentication status in session_state.
+    Stops execution if the entered password is wrong.
+    """
     def password_entered():
         if hashlib.sha256(st.session_state["pw"].encode()).hexdigest() == st.secrets["password_hash"]:
             st.session_state["authenticated"] = True
@@ -39,11 +48,17 @@ def check_password():
         st.error("Wrong password. Try again.")
         st.stop()
 
+# Authenticate user before loading the app
 check_password()
 
+# App title
 st.title("Time Tracker")
 
-# 2. Google Sheets Verbindung aufbauen
+# Connect to Google Sheets
+"""
+Set up Google Sheets client using credentials stored in Streamlit secrets.
+Access three worksheets: entries (main), settings, and weekly hours history.
+"""
 scope = [
     "https://spreadsheets.google.com/feeds",
     "https://www.googleapis.com/auth/drive"
@@ -51,14 +66,14 @@ scope = [
 creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
 client = gspread.authorize(creds)
 
-# Hauptdatenblatt (Entries)
-sheet = client.open("timetracker-data").sheet1  # Passe ggf. den Namen an!
-
-# Settings- und WeeklyHistory-Blätter holen
+sheet = client.open("timetracker-data").sheet1
 settings_sheet = client.open("timetracker-data").worksheet("Settings")
 weekly_sheet = client.open("timetracker-data").worksheet("WeeklyHistory")
 
-# 3. Settings & WeeklyHistory laden
+# Load settings and weekly hour targets
+"""
+Retrieve app settings (default job, wage, target hours) and weekly hour history from Google Sheets.
+"""
 settings = load_settings_gsheet(settings_sheet)
 whist = load_weekly_hours_history_gsheet(weekly_sheet)
 
@@ -66,7 +81,7 @@ estimated_weekly_hours = settings.get("estimated_weekly_hours", 40)
 job_name = settings.get("default_job_name", "")
 hourly_wage = settings.get("default_hourly_wage", 0.0)
 
-# 4. Markup für die aktiven Einstellungen
+# Display current settings at the top of the app
 st.markdown(
     f"<span style='color:green; font-weight:bold;'>"
     f"Active job: {job_name}   |   "
@@ -76,27 +91,43 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-
-# 5. Eingabe-Felder
+# Input fields for new work entry
+"""
+Collect user input for a new work entry: date, start time, end time, and break duration.
+"""
 work_date = st.date_input("Date")
 start_time = st.time_input("Start Time")
 end_time = st.time_input("End Time")
 break_minutes = st.number_input("Break (minutes)", min_value=0, value=0)
 
-# 6. Settings sidebar (unverändert)
+# Sidebar: Settings form
+"""
+Provide a sidebar form for editing and saving default job name, hourly wage, and estimated weekly hours.
+Updates settings and weekly hour history in Google Sheets.
+"""
 st.sidebar.header("Settings")
 with st.sidebar.form("settings_form"):
     new_job_name = st.text_input("Default job name", value=settings.get("default_job_name", ""))
-    new_hourly_wage = st.number_input("Default hourly wage (€)", min_value=0.0, value=settings.get("default_hourly_wage", 0.0), step=0.5, format="%.2f")
-    new_weekly_hours = st.number_input("Estimated weekly hours", min_value=1.0, value=float(settings.get("estimated_weekly_hours", 40)), step=0.5)
+    new_hourly_wage = st.number_input(
+        "Default hourly wage (€)",
+        min_value=0.0,
+        value=settings.get("default_hourly_wage", 0.0),
+        step=0.5,
+        format="%.2f"
+    )
+    # this is needed so that the user can have several different "overtime settings" for different weeks
+    new_weekly_hours = st.number_input(
+        "Estimated weekly hours",
+        min_value=1.0,
+        value=float(settings.get("estimated_weekly_hours", 40)),
+        step=0.5
+    )
     save_btn = st.form_submit_button("Save settings")
     if save_btn:
         settings["default_job_name"] = new_job_name
         settings["default_hourly_wage"] = new_hourly_wage
         settings["estimated_weekly_hours"] = new_weekly_hours
         save_settings_gsheet(settings, settings_sheet)
-
-        from datetime import date
 
         year, week, _ = date.today().isocalendar()
         week_id = f"{year}-{week:02d}"
@@ -106,8 +137,12 @@ with st.sidebar.form("settings_form"):
         st.success("Settings saved!")
         st.rerun()
 
-# 7. Eintrag speichern
-if st.button("Calculate Entry"):
+# Save new entry to Google Sheets
+"""
+Button to validate and save a new work entry.
+Shows error messages for invalid input and success message after saving.
+"""
+if st.button("Save Entry"):
     error_msg = validate_entry(start_time, end_time, break_minutes, hourly_wage)
     if error_msg:
         st.error(error_msg)
@@ -128,21 +163,24 @@ if st.button("Calculate Entry"):
         st.rerun()
 st.caption('To delete an entry, go to **All entries**.')
 
-# 8. Einträge laden (Google Sheet)
+# Load and preprocess all work entries
+"""
+Read all entries from Google Sheets, convert date/time columns,
+and sort entries by date and start time (descending).
+"""
 entries_df = load_entries_gsheet(sheet)
-
-# 9. Datums- und Zeitspalten korrekt umwandeln
 entries_df["Date"] = pd.to_datetime(entries_df["Date"], errors='coerce')
 if "Start time" in entries_df.columns:
     entries_df["Start time"] = pd.to_datetime(entries_df["Start time"], format="%H:%M", errors="coerce")
-
 entries_df = entries_df.sort_values(
     by=["Date", "Start time"], ascending=[False, False]
 ).reset_index(drop=True)
 
-from datetime import date, timedelta
-
-# Kalenderlogik
+# Weekly overview: calendar-style display for current week
+"""
+Show a grid with each weekday, displaying job, times, hours, and earnings for each day.
+Summarize total hours and earnings for the current week.
+"""
 today = date.today()
 year_now, week_now, _ = today.isocalendar()
 mask_this_week = (
@@ -152,25 +190,10 @@ mask_this_week = (
 )
 entries_this_week = entries_df[mask_this_week].copy()
 
-weekday_today = today.weekday()  # 0 = Montag
+weekday_today = today.weekday()  # Monday=0
 monday = today - timedelta(days=weekday_today)
 weekdays = [monday + timedelta(days=i) for i in range(7)]
 weekday_labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-
-# ======= THIS WEEK =======
-def safe_float(x):
-    try:
-        return float(x)
-    except Exception:
-        return float('nan')
-
-def safe_sum(series):
-    vals = pd.to_numeric(series, errors="coerce")
-    result = vals.sum()
-    try:
-        return float(result)
-    except Exception:
-        return 0.0
 
 st.subheader("This Week")
 if not entries_this_week.empty:
@@ -204,7 +227,6 @@ if not entries_this_week.empty:
                 )
         else:
             col.write("–")
-    # Summen robust berechnen
     total_hours = safe_sum(entries_this_week["Hours worked"])
     total_earnings = safe_sum(entries_this_week["Earnings"])
     if pd.isna(total_hours):
@@ -219,50 +241,29 @@ if not entries_this_week.empty:
 else:
     st.info("No entries for this week yet.")
 
-
-# ========== SUMMARIES & CHART ==========
-
-def style_entries_table(df):
-    return df.style.format({
-        "Hours worked": "{:.2f}",
-        "Earnings": "{:.2f} €"
-    })
-
-def style_summary_table_with_overtime(df):
-    return df.style.format({
-        "Total hours": "{:.2f}",
-        "Total earnings": "{:.2f} €",
-        "Estimated weekly hours": "{:.2f}",
-        "Overtime": "{:.2f}"
-    })
-
-def style_summary_table(df):
-    return df.style.format({
-        "Total hours": "{:.2f}",
-        "Total earnings": "{:.2f} €"
-    })
-
+# Summaries and charts: weekly and monthly
+"""
+Display weekly and monthly summaries of worked hours and earnings.
+Show a bar chart for the last 4 weeks, expandable tables for weekly and monthly summaries,
+and a full entries table with delete option.
+"""
 if not entries_df.empty:
     entries_df["Hours worked"] = pd.to_numeric(entries_df["Hours worked"], errors="coerce").round(2)
     entries_df["Earnings"] = pd.to_numeric(entries_df["Earnings"], errors="coerce").round(2)
 
-    # WEEKLY SUMMARY
+    # Weekly summary (per ISO week)
     weekly_summary = summarize_weekly_hours(entries_df)
     weekly_summary["total_hours"] = weekly_summary["total_hours"].round(2)
     weekly_summary["total_earnings"] = weekly_summary["total_earnings"].round(2)
     weekly_summary = calculate_overtime(weekly_summary, settings, whist)
 
-    # Chart: aufsteigend sortieren
+    # Ascending for chart, descending for table
     weekly_summary_chart = weekly_summary.sort_values(
         by=["Year", "Week"], ascending=[True, True]
     ).reset_index(drop=True)
-
-    # Für Tabelle: absteigend sortieren
     weekly_summary = weekly_summary.sort_values(
         by=["Year", "Week"], ascending=[False, False]
     ).reset_index(drop=True)
-
-    # Rename columns for table display
     weekly_summary = weekly_summary.rename(columns={
         "total_hours": "Total hours",
         "total_earnings": "Total earnings",
@@ -270,31 +271,28 @@ if not entries_df.empty:
         "Overtime": "Overtime"
     })
 
-    # MONTHLY SUMMARY
+    # Monthly summary
     monthly_summary = summarize_monthly_hours(entries_df)
     monthly_summary["total_hours"] = monthly_summary["total_hours"].round(2)
     monthly_summary["total_earnings"] = monthly_summary["total_earnings"].round(2)
     monthly_summary = monthly_summary.sort_values(by="Month", ascending=False).reset_index(drop=True)
-
     monthly_summary = monthly_summary.rename(columns={
         "total_hours": "Total hours",
         "total_earnings": "Total earnings"
     })
 
-    # CHART
+    # Bar chart: last 4 weeks
     st.subheader("4 Weeks Overview")
     fig = plot_weekly_hours(weekly_summary_chart)
     st.plotly_chart(fig, use_container_width=True)
 
-    # WEEKLY SUMMARY (EXPANDER)
+    # Expanders for summaries and all entries
     with st.expander("Weekly summary"):
         st.write(style_summary_table_with_overtime(weekly_summary))
 
-    # MONTHLY SUMMARY (EXPANDER)
     with st.expander("Monthly summary"):
         st.write(style_summary_table(monthly_summary))
 
-    # ALL ENTRIES (EXPANDER)
     with st.expander("All entries"):
         cols = st.columns([2, 2, 2, 2, 2, 1])
         headers = ["Date", "Start–End", "Job Name", "Hours worked", "Earnings", ""]
@@ -329,16 +327,13 @@ if not entries_df.empty:
             cols[2].write(job)
             cols[3].write(hours)
             cols[4].write(earnings)
-            # Mülleimer-Button: Lösche Zeile im Google Sheet (idx+2, da Header Zeile 1)
+            # Delete button: removes row in Google Sheet (idx+2 because header is row 1)
             if cols[5].button("🗑️", key=f"del_{idx}"):
                 sheet.delete_rows(idx + 2, idx + 2)
                 st.rerun()
                 break
-
 else:
     st.info("No entries yet. Add some time entries to see summaries!")
-
-
 
 
 
