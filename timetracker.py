@@ -346,7 +346,7 @@ if not entries_df.empty:
             cols[4].write(earnings)
             # Mülleimer-Button: Lösche Zeile im Google Sheet (idx+2, da Header Zeile 1)
             if cols[5].button("🗑️", key=f"del_{idx}"):
-                sheet.delete_rows(idx + 2)
+                sheet.delete_rows(idx + 2, idx + 2)
                 st.rerun()
                 break
 
