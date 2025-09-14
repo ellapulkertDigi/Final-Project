@@ -315,8 +315,7 @@ if not entries_df.empty:
                 sheet.delete_rows(idx + 2, idx + 2)
                 st.rerun()
                 break
-else:
-    st.info("No entries yet. Add some time entries to see summaries!")
+
 
 
 
