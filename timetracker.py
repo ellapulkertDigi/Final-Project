@@ -15,6 +15,27 @@ from timetrackerfunctions import (
     plot_weekly_hours
 )
 
+import hashlib
+
+def check_password():
+    """Simple password protection for Streamlit apps."""
+    def password_entered():
+        if hashlib.sha256(st.session_state["pw"].encode()).hexdigest() == st.secrets["password_hash"]:
+            st.session_state["authenticated"] = True
+            del st.session_state["pw"]
+        else:
+            st.session_state["authenticated"] = False
+
+    if "authenticated" not in st.session_state:
+        st.text_input("Password", type="password", key="pw", on_change=password_entered)
+        st.stop()
+    elif not st.session_state["authenticated"]:
+        st.text_input("Password", type="password", key="pw", on_change=password_entered)
+        st.error("Wrong password. Try again.")
+        st.stop()
+
+# Call this at the very top!
+check_password()
 
 st.title("Time Tracker")
 
