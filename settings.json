@@ -1,5 +1,5 @@
 {
-  "default_job_name": "ZEIT",
-  "default_hourly_wage": 16.979999999999997,
-  "estimated_weekly_hours": 2
+  "default_job_name": "hello",
+  "default_hourly_wage": 24.0,
+  "estimated_weekly_hours": 11
 }

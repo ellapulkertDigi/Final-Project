@@ -42,14 +42,28 @@ st.title("Time Tracker")
 # Load settings and entries
 settings = load_settings()
 estimated_weekly_hours = settings.get("estimated_weekly_hours", 40)
-job_name = st.text_input("Job Name", value=settings.get("default_job_name", ""))
-hourly_wage = st.number_input("Hourly Wage (€)", min_value=0.0, value=settings.get("default_hourly_wage", 0.0), format="%.2f")
+
+# Hole aktuelle Einstellungen aus dem Sidebar-Formular
+job_name = settings.get("default_job_name", "")
+hourly_wage = settings.get("default_hourly_wage", 0.0)
+
+# Zeige die aktiven Einstellungen grün und fett an
+st.markdown(
+    f"<span style='color:green; font-weight:bold;'>"
+    f"Active job: {job_name}   |   "
+    f"Hourly wage: {hourly_wage:.2f} €   |   "
+    f"Estimated weekly hours: {estimated_weekly_hours}"
+    f"</span>",
+    unsafe_allow_html=True
+)
+
+# Nur noch die wirklich nötigen Felder in der Mitte:
 work_date = st.date_input("Date")
 start_time = st.time_input("Start Time")
 end_time = st.time_input("End Time")
 break_minutes = st.number_input("Break (minutes)", min_value=0, value=0)
 
-# Settings sidebar
+# Settings sidebar (unverändert)
 st.sidebar.header("Settings")
 with st.sidebar.form("settings_form"):
     new_job_name = st.text_input("Default job name", value=settings.get("default_job_name", ""))
@@ -61,7 +75,8 @@ with st.sidebar.form("settings_form"):
         settings["default_hourly_wage"] = new_hourly_wage
         settings["estimated_weekly_hours"] = new_weekly_hours
         save_settings(settings)
-        st.success("Settings saved! Please reload the page to apply changes.")
+        st.success("Settings saved!")
+        st.rerun()
 
 # Button and validation
 if st.button("Calculate Entry"):
@@ -82,6 +97,7 @@ if st.button("Calculate Entry"):
         }
         save_entry(entry)
         st.success(f"Worked hours: {duration:.2f}\nEarnings: {earnings:.2f} €")
+
 
 # Load and display entries
 entries_df = load_entries()
