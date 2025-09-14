@@ -117,6 +117,19 @@ if st.button("Calculate Entry"):
 # Load and display entries
 entries_df = load_entries()
 
+# Stelle sicher, dass Date ein datetime-Objekt ist (wichtig für korrektes Sortieren)
+entries_df["Date"] = pd.to_datetime(entries_df["Date"])
+
+# Optional: Auch nach Startzeit sortieren, falls mehrere Einträge am selben Tag
+if "Start time" in entries_df.columns:
+    entries_df["Start time"] = pd.to_datetime(entries_df["Start time"], format="%H:%M", errors="coerce")
+
+# Nach Datum (und ggf. Startzeit) absteigend sortieren:
+entries_df = entries_df.sort_values(
+    by=["Date", "Start time"], ascending=[False, False]
+).reset_index(drop=True)
+
+
 def style_entries_table(df):
     # Format "Hours worked" with two decimals and "Earnings" with two decimals plus euro sign
     return df.style.format({
@@ -148,9 +161,16 @@ if not entries_df.empty:
     weekly_summary["total_earnings"] = weekly_summary["total_earnings"].round(2)
     weekly_summary = calculate_overtime(weekly_summary, settings)
 
-    # Plot chart BEFORE renaming columns!
+    weekly_summary = weekly_summary.sort_values(by=["Year", "Week"], ascending=[False, False]).reset_index(drop=True)
+
+    # Für das Chart: Chronologisch (ascending)
+    weekly_summary_chart = weekly_summary.sort_values(
+        by=["Year", "Week"], ascending=[True, True]
+    ).reset_index(drop=True)
+
+    # CHART anzeigen (chronologisch, alt → neu)
     st.subheader("Weekly worked hours (chart, last 4 weeks)")
-    fig = plot_weekly_hours(weekly_summary)
+    fig = plot_weekly_hours(weekly_summary_chart)
     st.plotly_chart(fig, use_container_width=True)
 
     # Rename columns for table display
@@ -164,32 +184,35 @@ if not entries_df.empty:
     monthly_summary = summarize_monthly_hours(entries_df)
     monthly_summary["total_hours"] = monthly_summary["total_hours"].round(2)
     monthly_summary["total_earnings"] = monthly_summary["total_earnings"].round(2)
+    monthly_summary = monthly_summary.sort_values(by="Month", ascending=False).reset_index(drop=True)
+
     monthly_summary = monthly_summary.rename(columns={
         "total_hours": "Total hours",
         "total_earnings": "Total earnings"
     })
 
     if not entries_df.empty:
-        st.subheader("All entries")
-        # Tabellenkopf
-        cols = st.columns([2, 2, 2, 2, 2, 1])
-        headers = ["Date", "Start-End", "Job Name", "Hours worked", "Earnings", ""]
-        for col, header in zip(cols, headers):
-            col.markdown(f"**{header}**")
-
-        # Tabellenzeilen
-        for idx, row in entries_df.iterrows():
+        with st.expander("Show all entries"):
+            st.subheader("All entries")
+            # Tabellenkopf
             cols = st.columns([2, 2, 2, 2, 2, 1])
-            cols[0].write(row["Date"])
-            cols[1].write(f"{row['Start time']}–{row['End time']}")
-            cols[2].write(row["Job Name"])
-            cols[3].write(f"{row['Hours worked']} h")
-            cols[4].write(f"{row['Earnings']} €")
-            if cols[5].button("Delete", key=f"del_{idx}"):
-                entries_df = entries_df.drop(idx)
-                entries_df.to_csv("entries.csv", index=False)
-                st.rerun()
-                break
+            headers = ["Date", "Start-End", "Job Name", "Hours worked", "Earnings", ""]
+            for col, header in zip(cols, headers):
+                col.markdown(f"**{header}**")
+
+            # Tabellenzeilen
+            for idx, row in entries_df.iterrows():
+                cols = st.columns([2, 2, 2, 2, 2, 1])
+                cols[0].write(row["Date"])
+                cols[1].write(f"{row['Start time']}–{row['End time']}")
+                cols[2].write(row["Job Name"])
+                cols[3].write(f"{row['Hours worked']} h")
+                cols[4].write(f"{row['Earnings']} €")
+                if cols[5].button("Delete", key=f"del_{idx}"):
+                    entries_df = entries_df.drop(idx)
+                    entries_df.to_csv("entries.csv", index=False)
+                    st.rerun()
+                    break
 
     st.subheader("Weekly summary")
     st.write(style_summary_table_with_overtime(weekly_summary))
