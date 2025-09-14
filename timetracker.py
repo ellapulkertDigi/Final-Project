@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 from timetrackerfunctions import (
@@ -12,7 +11,8 @@ from timetrackerfunctions import (
     load_settings,
     save_settings,
     calculate_overtime,
-    plot_weekly_hours
+    plot_weekly_hours,
+    fmt_time
 )
 
 import hashlib
@@ -57,7 +57,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Nur noch die wirklich nötigen Felder in der Mitte:
+# Eingabe-Felder
 work_date = st.date_input("Date")
 start_time = st.time_input("Start Time")
 end_time = st.time_input("End Time")
@@ -112,7 +112,7 @@ if st.button("Calculate Entry"):
         }
         save_entry(entry)
         st.success(f"Worked hours: {duration:.2f}\nEarnings: {earnings:.2f} €")
-
+st.caption('To delete an entry, go to **All entries**.')
 
 # Load and display entries
 entries_df = load_entries()
@@ -129,22 +129,8 @@ entries_df = entries_df.sort_values(
     by=["Date", "Start time"], ascending=[False, False]
 ).reset_index(drop=True)
 
-st.subheader("This Week")
 from datetime import date, timedelta
 
-def fmt_time(t):
-    if pd.isnull(t):
-        return ""
-    if hasattr(t, "strftime"):
-        return t.strftime("%H:%M")
-    try:
-        from datetime import datetime
-        return datetime.strptime(str(t), "%H:%M:%S").strftime("%H:%M")
-    except Exception:
-        try:
-            return datetime.strptime(str(t), "%H:%M").strftime("%H:%M")
-        except Exception:
-            return str(t)[-5:]
 
 # Kalenderlogik
 today = date.today()
@@ -161,8 +147,8 @@ monday = today - timedelta(days=weekday_today)
 weekdays = [monday + timedelta(days=i) for i in range(7)]
 weekday_labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
+# ======= THIS WEEK =======
 st.subheader("This Week")
-
 if not entries_this_week.empty:
     cols = st.columns(7)
     for col, wd, label in zip(cols, weekdays, weekday_labels):
@@ -203,6 +189,7 @@ if not entries_this_week.empty:
 else:
     st.info("No entries for this week yet.")
 
+# ========== SUMMARIES & CHART ==========
 
 def style_entries_table(df):
     # Format "Hours worked" with two decimals and "Earnings" with two decimals plus euro sign
@@ -212,10 +199,11 @@ def style_entries_table(df):
     })
 
 def style_summary_table_with_overtime(df):
-    # Format all relevant columns, including Overtime
+    # Format all relevant columns, including Overtime and Estimated weekly hours
     return df.style.format({
         "Total hours": "{:.2f}",
         "Total earnings": "{:.2f} €",
+        "Estimated weekly hours": "{:.2f}",
         "Overtime": "{:.2f}"
     })
 
@@ -230,22 +218,22 @@ if not entries_df.empty:
     entries_df["Hours worked"] = entries_df["Hours worked"].round(2)
     entries_df["Earnings"] = entries_df["Earnings"].round(2)
 
+    # ========== WEEKLY SUMMARY ==========
+
     weekly_summary = summarize_weekly_hours(entries_df)
     weekly_summary["total_hours"] = weekly_summary["total_hours"].round(2)
     weekly_summary["total_earnings"] = weekly_summary["total_earnings"].round(2)
     weekly_summary = calculate_overtime(weekly_summary, settings)
 
-    weekly_summary = weekly_summary.sort_values(by=["Year", "Week"], ascending=[False, False]).reset_index(drop=True)
-
-    # Für das Chart: Chronologisch (ascending)
+    # Für Chart: aufsteigend sortieren
     weekly_summary_chart = weekly_summary.sort_values(
         by=["Year", "Week"], ascending=[True, True]
     ).reset_index(drop=True)
 
-    # CHART anzeigen (chronologisch, alt → neu)
-    st.subheader("Weekly worked hours (chart, last 4 weeks)")
-    fig = plot_weekly_hours(weekly_summary_chart)
-    st.plotly_chart(fig, use_container_width=True)
+    # Für Tabelle: absteigend sortieren
+    weekly_summary = weekly_summary.sort_values(
+        by=["Year", "Week"], ascending=[False, False]
+    ).reset_index(drop=True)
 
     # Rename columns for table display
     weekly_summary = weekly_summary.rename(columns={
@@ -254,6 +242,8 @@ if not entries_df.empty:
         "Estimated weekly hours": "Estimated weekly hours",
         "Overtime": "Overtime"
     })
+
+    # ========== MONTHLY SUMMARY ==========
 
     monthly_summary = summarize_monthly_hours(entries_df)
     monthly_summary["total_hours"] = monthly_summary["total_hours"].round(2)
@@ -265,34 +255,71 @@ if not entries_df.empty:
         "total_earnings": "Total earnings"
     })
 
-    if not entries_df.empty:
-        with st.expander("Show all entries"):
-            st.subheader("All entries")
-            # Tabellenkopf
+    # ========== CHART ==========
+
+    st.subheader("4 Weeks Overview")
+    fig = plot_weekly_hours(weekly_summary_chart)
+    st.plotly_chart(fig, use_container_width=True)
+
+    # ========== WEEKLY SUMMARY (EXPANDER) ==========
+    with st.expander("Weekly summary"):
+        st.write(style_summary_table_with_overtime(weekly_summary))
+
+    # ========== MONTHLY SUMMARY (EXPANDER) ==========
+    with st.expander("Monthly summary"):
+        st.write(style_summary_table(monthly_summary))
+
+    # ========== ALL ENTRIES (EXPANDER) ==========
+    with st.expander("All entries"):
+        # Tabellenkopf
+        cols = st.columns([2, 2, 2, 2, 2, 1])
+        headers = ["Date", "Start–End", "Job Name", "Hours worked", "Earnings", ""]
+        for col, header in zip(cols, headers):
+            col.markdown(f"**{header}**")
+
+        # Tabellenzeilen
+        for idx, row in entries_df.iterrows():
+            # Datum kompakt (DD.MM.YYYY)
+            try:
+                date_str = pd.to_datetime(row["Date"]).strftime("%d.%m.%Y")
+            except Exception:
+                date_str = str(row["Date"])
+
+            # Start-End kompakt (HH:MM–HH:MM)
+            start_fmt = fmt_time(row['Start time'])
+            end_fmt = fmt_time(row['End time'])
+
+            if start_fmt and end_fmt:
+                start_end_str = f"{start_fmt}–{end_fmt}"
+            elif start_fmt:
+                start_end_str = start_fmt
+            elif end_fmt:
+                start_end_str = end_fmt
+            else:
+                start_end_str = "-"
+
+            job = row["Job Name"]
+            hours = f"{row['Hours worked']:.2f} h"
+            earnings = f"{row['Earnings']:.2f} €"
+
             cols = st.columns([2, 2, 2, 2, 2, 1])
-            headers = ["Date", "Start-End", "Job Name", "Hours worked", "Earnings", ""]
-            for col, header in zip(cols, headers):
-                col.markdown(f"**{header}**")
+            cols[0].write(date_str)
+            cols[1].write(start_end_str)
+            cols[2].write(job)
+            cols[3].write(hours)
+            cols[4].write(earnings)
+            # Nur Mülleimer-Emoji:
+            if cols[5].button("🗑️", key=f"del_{idx}"):
+                entries_df = entries_df.drop(idx)
+                entries_df.to_csv("entries.csv", index=False)
+                st.rerun()
+                break
 
-            # Tabellenzeilen
-            for idx, row in entries_df.iterrows():
-                cols = st.columns([2, 2, 2, 2, 2, 1])
-                cols[0].write(row["Date"])
-                cols[1].write(f"{row['Start time']}–{row['End time']}")
-                cols[2].write(row["Job Name"])
-                cols[3].write(f"{row['Hours worked']} h")
-                cols[4].write(f"{row['Earnings']} €")
-                if cols[5].button("Delete", key=f"del_{idx}"):
-                    entries_df = entries_df.drop(idx)
-                    entries_df.to_csv("entries.csv", index=False)
-                    st.rerun()
-                    break
 
-    st.subheader("Weekly summary")
-    st.write(style_summary_table_with_overtime(weekly_summary))
 
-    st.subheader("Monthly summary")
-    st.write(style_summary_table(monthly_summary))
 else:
     st.info("No entries yet. Add some time entries to see summaries!")
+
+
+
 

@@ -148,7 +148,6 @@ def plot_weekly_hours(weekly_summary):
 
     fig.update_layout(
         barmode="stack",
-        title="Weekly Worked Hours with Overtime Highlight",
         yaxis_title="Hours",
         xaxis_title="Week",
         legend_title="Legend",
@@ -156,4 +155,22 @@ def plot_weekly_hours(weekly_summary):
     )
     return fig
 
-
+def fmt_time(t):
+    """Formatiert Uhrzeit für die Tabelle als HH:MM oder ''."""
+    import pandas as pd
+    if pd.isnull(t) or t is None:
+        return ""
+    if hasattr(t, "strftime"):
+        return t.strftime("%H:%M")
+    t_str = str(t)
+    # Falls Format "18:30:00" oder "18:30", dann die ersten 5 Zeichen nehmen
+    if len(t_str) >= 5 and t_str[2] == ":":
+        return t_str[:5]
+    if " " in t_str and ":" in t_str:
+        try:
+            return t_str.split(" ")[1][:5]
+        except Exception:
+            pass
+    if ":" in t_str:
+        return t_str[-5:]
+    return ""
