@@ -169,8 +169,27 @@ if not entries_df.empty:
         "total_earnings": "Total earnings"
     })
 
-    st.subheader("All entries")
-    st.write(style_entries_table(entries_df))
+    if not entries_df.empty:
+        st.subheader("All entries")
+        # Tabellenkopf
+        cols = st.columns([2, 2, 2, 2, 2, 1])
+        headers = ["Date", "Start-End", "Job Name", "Hours worked", "Earnings", ""]
+        for col, header in zip(cols, headers):
+            col.markdown(f"**{header}**")
+
+        # Tabellenzeilen
+        for idx, row in entries_df.iterrows():
+            cols = st.columns([2, 2, 2, 2, 2, 1])
+            cols[0].write(row["Date"])
+            cols[1].write(f"{row['Start time']}–{row['End time']}")
+            cols[2].write(row["Job Name"])
+            cols[3].write(f"{row['Hours worked']} h")
+            cols[4].write(f"{row['Earnings']} €")
+            if cols[5].button("Delete", key=f"del_{idx}"):
+                entries_df = entries_df.drop(idx)
+                entries_df.to_csv("entries.csv", index=False)
+                st.rerun()
+                break
 
     st.subheader("Weekly summary")
     st.write(style_summary_table_with_overtime(weekly_summary))
