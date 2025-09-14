@@ -46,8 +46,9 @@ def calculate_earnings(hours_worked: float, hourly_wage: float) -> float:
 
 def summarize_weekly_hours(df):
     df["Date"] = pd.to_datetime(df["Date"])
+    df["Year"] = df["Date"].dt.isocalendar().year
     df["Week"] = df["Date"].dt.isocalendar().week
-    week_summary = df.groupby("Week").agg(
+    week_summary = df.groupby(["Year", "Week"]).agg(
         total_hours=("Hours worked", "sum"),
         total_earnings=("Earnings", "sum")
     ).reset_index()
@@ -62,9 +63,36 @@ def summarize_monthly_hours(df):
     ).reset_index()
     return month_summary
 
-def calculate_overtime(weekly_summary, estimated_weekly_hours):
-    weekly_summary["Overtime"] = weekly_summary["total_hours"] - estimated_weekly_hours
-    weekly_summary["Overtime"] = weekly_summary["Overtime"].apply(lambda x: x if x > 0 else 0)
+def calculate_overtime(weekly_summary, settings, hist_file="weekly_hours_history.json"):
+    """
+    Adds an 'Overtime' column to the weekly_summary DataFrame,
+    using the correct 'estimated weekly hours' for each week.
+    """
+    # Lade Historie
+    if os.path.exists(hist_file):
+        with open(hist_file, "r") as f:
+            whist = json.load(f)
+    else:
+        whist = {}
+
+    # Hilfsfunktion: Hole Sollwert für die Woche
+    def get_estimated_weekly_hours(year, week):
+        week_id = f"{year}-{week:02d}"
+        return whist.get(week_id, settings.get("estimated_weekly_hours", 40))  # fallback: aktueller Wert
+
+    # Berechne Overtime pro Woche individuell
+    overtime_list = []
+    used_weekly_hours = []
+    for _, row in weekly_summary.iterrows():
+        year = row["Year"]
+        week = row["Week"]
+        est_hours = get_estimated_weekly_hours(year, week)
+        used_weekly_hours.append(est_hours)
+        overtime = max(row["total_hours"] - est_hours, 0)
+        overtime_list.append(overtime)
+
+    weekly_summary["Estimated weekly hours"] = used_weekly_hours
+    weekly_summary["Overtime"] = overtime_list
     return weekly_summary
 
 # DATA SAVING AND LOADING

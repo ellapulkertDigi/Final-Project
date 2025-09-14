@@ -75,6 +75,21 @@ with st.sidebar.form("settings_form"):
         settings["default_hourly_wage"] = new_hourly_wage
         settings["estimated_weekly_hours"] = new_weekly_hours
         save_settings(settings)
+
+        from datetime import date
+        import json, os
+        year, week, _ = date.today().isocalendar()
+        week_id = f"{year}-{week:02d}"
+        hist_file = "weekly_hours_history.json"
+        if os.path.exists(hist_file):
+            with open(hist_file, "r") as f:
+                whist = json.load(f)
+        else:
+            whist = {}
+        whist[week_id] = new_weekly_hours
+        with open(hist_file, "w") as f:
+            json.dump(whist, f)
+
         st.success("Settings saved!")
         st.rerun()
 
@@ -131,7 +146,7 @@ if not entries_df.empty:
     weekly_summary = summarize_weekly_hours(entries_df)
     weekly_summary["total_hours"] = weekly_summary["total_hours"].round(2)
     weekly_summary["total_earnings"] = weekly_summary["total_earnings"].round(2)
-    weekly_summary = calculate_overtime(weekly_summary, estimated_weekly_hours)
+    weekly_summary = calculate_overtime(weekly_summary, settings)
 
     # Plot chart BEFORE renaming columns!
     st.subheader("Weekly worked hours (chart, last 4 weeks)")
@@ -142,6 +157,7 @@ if not entries_df.empty:
     weekly_summary = weekly_summary.rename(columns={
         "total_hours": "Total hours",
         "total_earnings": "Total earnings",
+        "Estimated weekly hours": "Estimated weekly hours",
         "Overtime": "Overtime"
     })
 
