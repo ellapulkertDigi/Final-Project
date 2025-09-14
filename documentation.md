@@ -140,3 +140,35 @@ Automatically calculate and display weekly overtime based on user-defined estima
 
 **Definition of Done:**
 Users see at a glance whether they worked overtime in any given week, with total overtime hours displayed.
+
+---
+## Weekly Hours Bar Chart
+**Goal:** Visualize the number of hours worked for each week to provide a quick overview of work trends and overtime.
+
+**Steps completed:**
+- Added a new function `plot_weekly_hours using` Plotly Express to create an interactive bar chart.
+- The chart displays "Week Number" on the X-axis and "Hours Worked" on the Y-axis.
+- A red dashed horizontal line indicates the user-defined overtime threshold (estimated_weekly_hours) for easy comparison.
+- The chart is embedded directly in the Streamlit UI below the weekly summary table for better accessibility.
+
+**Definition of Done:**
+Users can now quickly see how much they worked in the most recent weeks and immediately recognize if their working time exceeds their weekly target.
+
+---
+
+## Password Protection
+
+**Goal:** Restrict access to the app for privacy and security, especially when the app is deployed publicly (e.g., on Streamlit Cloud).
+
+**Steps completed:**
+- Implemented a simple password protection at the very start of the Streamlit app.
+- On startup, the user is prompted to enter a password. Only after successful authentication is the main interface displayed.
+- The password is not stored in plain text, but as a SHA256 hash in the `.streamlit/secrets.toml` file. During login, the entered password is hashed and compared to this value.
+- The secrets file is excluded from version control via `.gitignore` to keep the password confidential.
+
+**Definition of Done:**
+The app requests a password before showing any content. Only users with the pre-set password can access the main interface.
+
+**Known Limitation:**
+This approach only allows for **a single, pre-defined password** that must be set in advance by the admin or developer. There is **no account management or the possibility for end users to set their own password or have individual profiles.** All users share the same access and settings. If true multi-user support with personalized data is required, a more advanced authentication and user management system would be needed.
+
