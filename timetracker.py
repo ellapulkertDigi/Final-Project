@@ -179,6 +179,13 @@ def safe_float(x):
     except Exception:
         return float('nan')
 
+def safe_sum(series):
+    try:
+        # Wandelt alles in Zahlen um, ignoriert Fehlerhafte Einträge, summiert
+        return float(pd.to_numeric(series, errors="coerce").sum())
+    except Exception:
+        return float('nan')
+
 st.subheader("This Week")
 if not entries_this_week.empty:
     cols = st.columns(7)
@@ -211,15 +218,16 @@ if not entries_this_week.empty:
                 )
         else:
             col.write("–")
-
-    total_hours = entries_this_week["Hours worked"].sum()
-    total_earnings = entries_this_week["Earnings"].sum()
+    # Summen robust berechnen
+    total_hours = safe_sum(entries_this_week["Hours worked"])
+    total_earnings = safe_sum(entries_this_week["Earnings"])
     st.info(
         f"**Total this week:** {total_hours:.2f} hours   |   {total_earnings:.2f} €",
         icon="🧮"
     )
 else:
     st.info("No entries for this week yet.")
+
 
 # ========== SUMMARIES & CHART ==========
 
