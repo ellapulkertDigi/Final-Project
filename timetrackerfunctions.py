@@ -4,6 +4,28 @@ import os
 import json
 import plotly.express as px
 
+def load_entries_gsheet(sheet):
+    data = sheet.get_all_records()
+    df = pd.DataFrame(data)
+    if df.empty:
+        df = pd.DataFrame(columns=[
+            "Job Name", "Date", "Start time", "End time", "Break minutes", "Hours worked", "Earnings"
+        ])
+    return df
+
+def save_entry_gsheet(entry, sheet):
+    row = [
+        entry["Job Name"],
+        entry["Date"],
+        entry["Start time"],
+        entry["End time"],
+        entry["Break minutes"],
+        entry["Hours worked"],
+        entry["Earnings"]
+    ]
+    sheet.append_row(row)
+
+
 # SETTINGS
 def load_settings_gsheet(sheet):
     records = sheet.get_all_records()

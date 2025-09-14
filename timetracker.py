@@ -1,9 +1,3 @@
-import pandas as pd
-import hashlib
-import gspread
-from google.oauth2.service_account import Credentials
-
-# Deine eigenen Funktionen aus timetrackerfunctions.py:
 from timetrackerfunctions import (
     calculate_daily_hours,
     calculate_earnings,
