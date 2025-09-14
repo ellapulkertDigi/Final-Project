@@ -246,15 +246,6 @@ def fmt_time(t):
         return t_str[-5:]
     return ""
 
-def style_entries_table(df):
-    """
-    Apply standard number formatting for entries table (hours, earnings).
-    """
-    return df.style.format({
-        "Hours worked": "{:.2f}",
-        "Earnings": "{:.2f} €"
-    })
-
 def style_summary_table_with_overtime(df):
     """
     Apply formatting for weekly summary table with overtime and targets.

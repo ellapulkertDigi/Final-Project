@@ -22,7 +22,6 @@ from timetrackerfunctions import (
     save_weekly_hours_history_gsheet,
     safe_float,
     safe_sum,
-    style_entries_table,
     style_summary_table_with_overtime,
     style_summary_table
 )
