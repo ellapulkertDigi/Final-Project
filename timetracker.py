@@ -129,6 +129,80 @@ entries_df = entries_df.sort_values(
     by=["Date", "Start time"], ascending=[False, False]
 ).reset_index(drop=True)
 
+st.subheader("This Week")
+from datetime import date, timedelta
+
+def fmt_time(t):
+    if pd.isnull(t):
+        return ""
+    if hasattr(t, "strftime"):
+        return t.strftime("%H:%M")
+    try:
+        from datetime import datetime
+        return datetime.strptime(str(t), "%H:%M:%S").strftime("%H:%M")
+    except Exception:
+        try:
+            return datetime.strptime(str(t), "%H:%M").strftime("%H:%M")
+        except Exception:
+            return str(t)[-5:]
+
+# Kalenderlogik
+today = date.today()
+year_now, week_now, _ = today.isocalendar()
+mask_this_week = (
+    entries_df["Date"].dt.isocalendar().year == year_now
+) & (
+    entries_df["Date"].dt.isocalendar().week == week_now
+)
+entries_this_week = entries_df[mask_this_week].copy()
+
+weekday_today = today.weekday()  # 0 = Montag
+monday = today - timedelta(days=weekday_today)
+weekdays = [monday + timedelta(days=i) for i in range(7)]
+weekday_labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+st.subheader("This Week")
+
+if not entries_this_week.empty:
+    cols = st.columns(7)
+    for col, wd, label in zip(cols, weekdays, weekday_labels):
+        col.markdown(f"**{label}<br>{wd.strftime('%d.%m.')}**", unsafe_allow_html=True)
+        day_entries = entries_this_week[entries_this_week["Date"].dt.date == wd]
+        if not day_entries.empty:
+            for _, row in day_entries.iterrows():
+                start = fmt_time(row['Start time'])
+                end = fmt_time(row['End time'])
+                hours = row['Hours worked']
+                earnings = row['Earnings']
+                job = row['Job Name']
+
+                if start and end:
+                    time_str = f"{start}–{end}"
+                elif start:
+                    time_str = f"{start}"
+                elif end:
+                    time_str = f"{end}"
+                else:
+                    time_str = ""
+
+                col.markdown(
+                    f"<b>{job}</b><br>"
+                    f"{time_str}<br>"
+                    f"⏰ {hours:.2f}h<br>"
+                    f"💶 {earnings:.2f}€",
+                    unsafe_allow_html=True
+                )
+        else:
+            col.write("–")
+    total_hours = entries_this_week["Hours worked"].sum()
+    total_earnings = entries_this_week["Earnings"].sum()
+    st.info(
+        f"**Total this week:** {total_hours:.2f} hours   |   {total_earnings:.2f} €",
+        icon="🧮"
+    )
+else:
+    st.info("No entries for this week yet.")
+
 
 def style_entries_table(df):
     # Format "Hours worked" with two decimals and "Earnings" with two decimals plus euro sign
