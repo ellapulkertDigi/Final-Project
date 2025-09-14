@@ -140,6 +140,7 @@ if st.button("Calculate Entry"):
         }
         save_entry_gsheet(entry, sheet)
         st.success(f"Worked hours: {duration:.2f}\nEarnings: {earnings:.2f} €")
+        st.rerun()
 st.caption('To delete an entry, go to **All entries**.')
 
 # 8. Einträge laden (Google Sheet)
@@ -172,6 +173,12 @@ weekdays = [monday + timedelta(days=i) for i in range(7)]
 weekday_labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 # ======= THIS WEEK =======
+def safe_float(x):
+    try:
+        return float(x)
+    except Exception:
+        return float('nan')
+
 st.subheader("This Week")
 if not entries_this_week.empty:
     cols = st.columns(7)
@@ -182,8 +189,8 @@ if not entries_this_week.empty:
             for _, row in day_entries.iterrows():
                 start = fmt_time(row['Start time'])
                 end = fmt_time(row['End time'])
-                hours = row['Hours worked']
-                earnings = row['Earnings']
+                hours = safe_float(row['Hours worked'])
+                earnings = safe_float(row['Earnings'])
                 job = row['Job Name']
 
                 if start and end:
@@ -204,6 +211,7 @@ if not entries_this_week.empty:
                 )
         else:
             col.write("–")
+
     total_hours = entries_this_week["Hours worked"].sum()
     total_earnings = entries_this_week["Earnings"].sum()
     st.info(
