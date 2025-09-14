@@ -22,6 +22,7 @@ from timetrackerfunctions import (
     save_weekly_hours_history_gsheet,
     safe_float,
     safe_sum,
+    style_entries_table,
     style_summary_table_with_overtime,
     style_summary_table
 )
@@ -54,10 +55,8 @@ check_password()
 st.title("Time Tracker")
 
 # Connect to Google Sheets
-"""
-Set up Google Sheets client using credentials stored in Streamlit secrets.
-Access three worksheets: entries (main), settings, and weekly hours history.
-"""
+# Set up Google Sheets client using credentials stored in Streamlit secrets.
+# Access three worksheets: entries (main), settings, and weekly hours history.
 scope = [
     "https://spreadsheets.google.com/feeds",
     "https://www.googleapis.com/auth/drive"
@@ -70,9 +69,7 @@ settings_sheet = client.open("timetracker-data").worksheet("Settings")
 weekly_sheet = client.open("timetracker-data").worksheet("WeeklyHistory")
 
 # Load settings and weekly hour targets
-"""
-Retrieve app settings (default job, wage, target hours) and weekly hour history from Google Sheets.
-"""
+# Retrieve app settings (default job, wage, target hours) and weekly hour history from Google Sheets.
 settings = load_settings_gsheet(settings_sheet)
 whist = load_weekly_hours_history_gsheet(weekly_sheet)
 
@@ -91,19 +88,15 @@ st.markdown(
 )
 
 # Input fields for new work entry
-"""
-Collect user input for a new work entry: date, start time, end time, and break duration.
-"""
+# Collect user input for a new work entry: date, start time, end time, and break duration.
 work_date = st.date_input("Date")
 start_time = st.time_input("Start Time")
 end_time = st.time_input("End Time")
 break_minutes = st.number_input("Break (minutes)", min_value=0, value=0)
 
 # Sidebar: Settings form
-"""
-Provide a sidebar form for editing and saving default job name, hourly wage, and estimated weekly hours.
-Updates settings and weekly hour history in Google Sheets.
-"""
+# Provide a sidebar form for editing and saving default job name, hourly wage, and estimated weekly hours.
+# Updates settings and weekly hour history in Google Sheets.
 st.sidebar.header("Settings")
 with st.sidebar.form("settings_form"):
     new_job_name = st.text_input("Default job name", value=settings.get("default_job_name", ""))
@@ -137,10 +130,8 @@ with st.sidebar.form("settings_form"):
         st.rerun()
 
 # Save new entry to Google Sheets
-"""
-Button to validate and save a new work entry.
-Shows error messages for invalid input and success message after saving.
-"""
+# Button to validate and save a new work entry.
+# Shows error messages for invalid input and success message after saving.
 if st.button("Save Entry"):
     error_msg = validate_entry(start_time, end_time, break_minutes, hourly_wage)
     if error_msg:
@@ -163,10 +154,8 @@ if st.button("Save Entry"):
 st.caption('To delete an entry, go to **All entries**.')
 
 # Load and preprocess all work entries
-"""
-Read all entries from Google Sheets, convert date/time columns,
-and sort entries by date and start time (descending).
-"""
+# Read all entries from Google Sheets, convert date/time columns,
+# and sort entries by date and start time (descending).
 entries_df = load_entries_gsheet(sheet)
 entries_df["Date"] = pd.to_datetime(entries_df["Date"], errors='coerce')
 if "Start time" in entries_df.columns:
@@ -176,10 +165,8 @@ entries_df = entries_df.sort_values(
 ).reset_index(drop=True)
 
 # Weekly overview: calendar-style display for current week
-"""
-Show a grid with each weekday, displaying job, times, hours, and earnings for each day.
-Summarize total hours and earnings for the current week.
-"""
+# Show a grid with each weekday, displaying job, times, hours, and earnings for each day.
+# Summarize total hours and earnings for the current week.
 today = date.today()
 year_now, week_now, _ = today.isocalendar()
 mask_this_week = (
@@ -241,16 +228,14 @@ else:
     st.info("No entries for this week yet.")
 
 # Summaries and charts: weekly and monthly
-"""
-Display weekly and monthly summaries of worked hours and earnings.
-Show a bar chart for the last 4 weeks, expandable tables for weekly and monthly summaries,
-and a full entries table with delete option.
-"""
+# Display weekly and monthly summaries of worked hours and earnings.
+# Show a bar chart for the last 4 weeks, expandable tables for weekly and monthly summaries,
+# and a full entries table with delete option.
 if not entries_df.empty:
     entries_df["Hours worked"] = pd.to_numeric(entries_df["Hours worked"], errors="coerce").round(2)
     entries_df["Earnings"] = pd.to_numeric(entries_df["Earnings"], errors="coerce").round(2)
 
-    # Weekly summary (per ISO week)
+    # Weekly summary (per week)
     weekly_summary = summarize_weekly_hours(entries_df)
     weekly_summary["total_hours"] = weekly_summary["total_hours"].round(2)
     weekly_summary["total_earnings"] = weekly_summary["total_earnings"].round(2)
