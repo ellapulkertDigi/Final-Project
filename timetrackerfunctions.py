@@ -114,29 +114,46 @@ def load_entries(filename="entries.csv"):
         ])
 
 # VISUALIZATION
-def plot_weekly_hours(weekly_summary, estimated_weekly_hours):
-    # Ensure Week column is integer (in case it's an object)
-    weekly_summary["Week"] = weekly_summary["Week"].astype(int)
-    # Sort by week number (ascending)
-    data = weekly_summary.sort_values(by="Week")
-    # Get last 4 unique week numbers (with data)
-    last_weeks = sorted(data["Week"].unique())[-4:]
-    # Filter to only those weeks
-    data = data[data["Week"].isin(last_weeks)]
-    fig = px.bar(
-        data,
-        x="Week",
-        y="total_hours",
-        title="Weekly Worked Hours (Last 4 Weeks)",
-        labels={"Week": "Week Number", "total_hours": "Hours Worked"},
-        text_auto=".2f"
+import plotly.graph_objects as go
+import numpy as np
+
+def plot_weekly_hours(weekly_summary):
+    x = [f"{int(y)}-KW{int(w):02d}" for y, w in zip(weekly_summary["Year"], weekly_summary["Week"])]
+    y_hours = weekly_summary["total_hours"].values
+    y_target = weekly_summary["Estimated weekly hours"].values
+
+    # Normale Stunden: Minimum von gearbeitete Stunden und Ziel
+    normal_hours = np.minimum(y_hours, y_target)
+    # Overtime: Differenz (nur falls > 0, sonst 0)
+    overtime_hours = np.maximum(y_hours - y_target, 0)
+
+    fig = go.Figure()
+
+    # Blauer Balken: bis zum Ziel
+    fig.add_trace(go.Bar(
+        x=x,
+        y=normal_hours,
+        name="Worked (target or less)",
+        marker_color="royalblue"
+    ))
+
+    # Roter Balken: Overtime (gestapelt oben drauf)
+    fig.add_trace(go.Bar(
+        x=x,
+        y=overtime_hours,
+        name="Overtime",
+        marker_color="red"
+    ))
+
+
+    fig.update_layout(
+        barmode="stack",
+        title="Weekly Worked Hours with Overtime Highlight",
+        yaxis_title="Hours",
+        xaxis_title="Week",
+        legend_title="Legend",
+        bargap=0.2
     )
-    fig.add_hline(
-        y=estimated_weekly_hours,
-        line_dash="dash",
-        line_color="red",
-        annotation_text="Overtime limit",
-        annotation_position="top right"
-    )
-    fig.update_layout(yaxis=dict(tickformat=".2f"))
     return fig
+
+

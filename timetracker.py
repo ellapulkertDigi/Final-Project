@@ -67,8 +67,8 @@ break_minutes = st.number_input("Break (minutes)", min_value=0, value=0)
 st.sidebar.header("Settings")
 with st.sidebar.form("settings_form"):
     new_job_name = st.text_input("Default job name", value=settings.get("default_job_name", ""))
-    new_hourly_wage = st.number_input("Default hourly wage (€)", min_value=0.0, value=settings.get("default_hourly_wage", 0.0), format="%.2f")
-    new_weekly_hours = st.number_input("Estimated weekly hours", min_value=1, value=settings.get("estimated_weekly_hours", 40))
+    new_hourly_wage = st.number_input("Default hourly wage (€)", min_value=0.0, value=settings.get("default_hourly_wage", 0.0), step=0.5, format="%.2f")
+    new_weekly_hours = st.number_input("Estimated weekly hours", min_value=1.0, value=float(settings.get("estimated_weekly_hours", 40)), step=0.5)
     save_btn = st.form_submit_button("Save settings")
     if save_btn:
         settings["default_job_name"] = new_job_name
@@ -150,7 +150,7 @@ if not entries_df.empty:
 
     # Plot chart BEFORE renaming columns!
     st.subheader("Weekly worked hours (chart, last 4 weeks)")
-    fig = plot_weekly_hours(weekly_summary, estimated_weekly_hours)
+    fig = plot_weekly_hours(weekly_summary)
     st.plotly_chart(fig, use_container_width=True)
 
     # Rename columns for table display
